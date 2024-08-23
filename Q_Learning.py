@@ -106,7 +106,7 @@ if __name__ == "__main__":
     variance = np.var(mean_return)
    
     plt.figtext(0.5, 0.95,f"the variance = {variance}", ha='center')
-    plt.title("mean return with episodes")
+    plt.title("Q learning")
     plt.xlabel("episode")
     plt.ylabel("mean return")
     plt.plot(mean_return)    

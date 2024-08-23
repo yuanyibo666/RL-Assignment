@@ -1,77 +1,118 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from tqdm import tqdm
 import random
 import gym
-import numpy as np
-import matplotlib.pyplot as plt
- 
-env = gym.make('FrozenLake-v1', desc=None, map_name="4x4", is_slippery=False)
-observation_space_size = env.observation_space.n
-print(observation_space_size)
-action_space_size = env.action_space.n
-print(action_space_size)
-q_table = np.zeros((observation_space_size, action_space_size))
-print(q_table)
- 
- 
-total_episodes = 10000  # Total episodes 训练次数
-learning_rate = 0.8  # Learning rate 学习率
-max_steps = 50  # Max steps per episode 一次训练中最多决策次数
-gamma = 0.95  # Discounting rate 折扣率，对未来收益的折扣
- 
-# Exploration parameters
-epsilon = 0.7
- 
-# For life or until learning is stopped
 
-reward_list = []
-for episode in range(total_episodes):
-    # Reset the environment
-    state = env.reset()
-    state = state[0]  # 我们需要第一个未知的参数state,prob暂时不用
-    step = 0
-    done = False
-    total_reward = 0
-    for step in range(max_steps):
-        # Choose an action a in the current world state (s)
-        # First we randomize a number
- 
-        # 大概率根据Q表行动，也有一定概率随机行动
-        if random.uniform(0, 1) < epsilon:
-            # 根据Q值最大原则选取action，如果有多个action的Q相同且最大，则随机选取一个
-            state_all = q_table[state, :]
-            max_indices = np.argwhere(state_all == np.max(state_all)).flatten()
-            action = np.random.choice(max_indices)
+
+class sarsa():
+    def __init__(self,env,observation_space_size,action_space_size,max_step,episodes_num,gamma,alpha,epsilon):
+        self.env = env
+        self.observation_space_size = observation_space_size
+        self.action_space_size = action_space_size
+        self.max_step = max_step
+        self.episodes_num = episodes_num
+        self.gamma = gamma
+        self.alpha = alpha
+        self.epsilon = epsilon
+        
+        self.q_map = np.zeros((self.observation_space_size,self.action_space_size))
+        self.mean_return = np.zeros(0)
+    
+    
+    def take_action(self,state):
+        if random.uniform(0,1) < self.epsilon:
+            state_all = self.q_map[state,:]
+            max_value = np.max(state_all)
+            max_index = np.where(state_all == max_value)[0]
+            action = np.random.choice(max_index)
         else:
-            # 随机选取一个行动
-            action = env.action_space.sample()
- 
-        # 利用step函数求新状态、奖励、结果等，这里需要5个参数，可以看看源文档
-        new_state, reward, done, truncated, info = env.step(action)
+            action = self.env.action_space.sample()
         
-        total_reward += reward
+        return action
+            
+    def get_action_name(self,action):
+        if action == 0:
+            return "left"
+        elif action == 1:
+            return "down"
+        elif action == 2:
+            return "right"
+        else:
+            return "up"
+    
+    def genarate(self):
+        trace = []
+        for episode in range(self.episodes_num):
+
+            trace.clear()
+            state = self.env.reset()
+            state = state[0]
+            step = 0
+            is_done = False
+            total_return = 0
+            action = self.take_action(state)
+            
+            for step in range(self.max_step):
+                
+                trace.append(self.get_action_name(action))
+                next_state,reward,is_done,truncated,info = self.env.step(action)
+                
+                next_action = self.take_action(next_state)
+                
+                self.q_map[state][action] = self.q_map[state][action] + self.alpha*(reward + self.gamma * self.q_map[next_state,next_action] - self.q_map[state][action])
+                total_return += self.q_map[state][action]
+                if state == next_state:
+                   self.q_map[state, action] = 0
+                    
+                if is_done == True:
+                    if reward == 1:
+                        self.q_map[state,action] = 1
+                    else:
+                        self.q_map[state,action] = 0
+                    self.mean_return = np.append(self.mean_return,total_return/step)
+                    break
+                    
+                state = next_state
+                action = next_action
+            
+            
+                
+            if self.epsilon <= 1:
+                self.epsilon += 0.05
         
-        # Q表更新，也就是Q-learning的核心，具体原理不再赘述，在别的博客有很多
-        q_table[state, action] = q_table[state, action] + learning_rate * (
-                reward + gamma * np.max(q_table[new_state, :]) - q_table[state, action])
- 
-        # 这里自行修改Q值，加快运行速度，这里看似“作弊”，但是不影响Q-learning的原理
-        # 比如靠左墙还左转，那么将Q值减为负值，下次直接跳过这个选择
-        if state == new_state:
-            q_table[state, action] = -1
-        # 掉进河里也将Q值减为负值
-        if done:
-            if reward == 0:
-                q_table[state, action] = -1
-            reward_list.append(total_reward)
-            break
-        # Our new state is state
-        state = new_state
- 
-    # Reduce epsilon (because we need less and less exploration) 随着智能体对环境熟悉程度增加，可以减少对环境的探索
-    if epsilon < 0.95:
-        epsilon = epsilon + 0.001
+        print(f"the last trace is :{trace}")
+        #print(self.q_map)
+        return self.mean_return
+                
+
+
+episodes_num = 6000
+max_step = 400
+iteration_num = 10
+learn_rate = 0.8
+discount_rate = 0.99
+epsilon = 0.3
+
+if __name__ == "__main__":
+    env = gym.make('FrozenLake-v1', desc=None, map_name="4x4", is_slippery=False)
+    print(env.observation_space)
+    observation_space_size = env.observation_space.n
+    action_space_size = env.action_space.n
+    
+    print(f"size of observation space: {observation_space_size}, size of action space: {action_space_size}")
+    
+    q_learning_instance = sarsa(env,observation_space_size,action_space_size,max_step,episodes_num,discount_rate,learn_rate,epsilon)
+    mean_return = q_learning_instance.genarate()
+
+    variance = np.var(mean_return)
+   
+    plt.figtext(0.5, 0.95,f"the variance = {variance}", ha='center')
+    plt.title("Sarsa")
+    plt.xlabel("episode")
+    plt.ylabel("mean return")
+    plt.plot(mean_return)    
+    plt.show()
+    
+
         
-        
-plt.xlabel("episode")
-plt.ylabel("mean return")
-plt.plot(reward_list)    
-plt.show()
