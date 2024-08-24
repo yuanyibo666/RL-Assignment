@@ -6,7 +6,9 @@ import gym
 import collections
 import torch
 import torch.nn.functional as F
-
+import os
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="gym.utils.passive_env_checker")
 
 class replay_uffer():
     def __init__(self,capacity) -> None:
@@ -25,13 +27,14 @@ class replay_uffer():
         return len(self.buffer)
     
 class Qnet(torch.nn.Module):
-    def __init__(self,state_dim,hidden_dim,action_dim):
-        super(Qnet,self).__init__()
-        self.layer1 = torch.nn.Linear(state_dim,hidden_dim)
-        self.layer2 = torch.nn.Linear(hidden_dim,action_dim)
-    
-    def forward(self,x):
-        return self.layer2(F.relu(self.layer1(x)))
+    def __init__(self, state_dim, hidden_dim, action_dim):
+        super(Qnet, self).__init__()
+        self.fc1 = torch.nn.Linear(state_dim, hidden_dim)
+        self.fc2 = torch.nn.Linear(hidden_dim, action_dim)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))  # 隐藏层使用ReLU激活函数
+        return self.fc2(x)
     
     
 class DQN():  
@@ -54,7 +57,7 @@ class DQN():
         
     def take_action(self,state):
         if random.uniform(0,1) < self.eplison:
-            state = torch.tensor([state],dtype=torch.float).to(self.device)
+            state = torch.tensor(state,dtype=torch.float).to(self.device)
             action = self.q_net(state).argmax().item()
         else:
             action = np.random.randint(self.action_dim)
@@ -62,7 +65,7 @@ class DQN():
         return action
     
     def update(self,transition_dict):
-        states = torch.tensor(transition_dict["state"],dtype=torch.float).to(
+        states = torch.tensor(transition_dict["states"],dtype=torch.float).to(
             self.device)
         actions = torch.tensor(transition_dict['actions']).view(-1, 1).to(
             self.device)
@@ -90,12 +93,12 @@ class DQN():
         self.update_count += 1        
         
 
-lr = 2e-3
-num_episodes = 500
+lr = 0.01
+num_episodes = 50
 hidden_dim = 128
 gamma = 0.98
 epsilon = 0.99
-target_update = 10
+target_update = 5
 buffer_size = 10000
 minimal_size = 500
 batch_size = 64
@@ -108,31 +111,34 @@ if __name__ == "__main__":
     print("----------------------------------------------------")
     print(f"lr = {lr}, num_episodes = {num_episodes}, hidden_dim = {hidden_dim}, discount factor = {gamma},batch size = {batch_size}")
     print(f"epsilon is {epsilon}, target_update = {target_update}, buffer_size = {buffer_size}, minimal_size = {minimal_size}")
+    print(device)
     if(torch.cuda.is_available):
-        print(torch.cuda.get_device_name(torch.cuda.current_device()))
+        print(torch.cuda.current_device())
     print("----------------------------------------------------")
     
     random.seed(0)
     np.random.seed(0)
-    env.seed(0)
+    #env.seed(0)
     torch.manual_seed(0)
     buffer = replay_uffer(buffer_size)
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
-    agent = DQN(env,state_dim,hidden_dim,action_dim,gamma,epsilon,target_update,device)
+ 
+    agent = DQN(env,state_dim,hidden_dim,action_dim,lr,gamma,epsilon,target_update,device)
     return_list = []
     
     print("start training")
     for i in range(iteration_number):
         print(f"----->iteraion {i}")
-        with tqdm(total=int(num_episodes / 10), desc='Iteration %d' % i) as pbar:
-            for episode in range(int(num_episodes / 10)):
+        with tqdm(total=num_episodes, desc='Iteration %d' % i) as pbar:
+            for episode in range(num_episodes):
                 total_return = 0
                 state = env.reset()
+                state = state[0]
                 done = False
                 while not done:
                     action = agent.take_action(state)
-                    next_state,reward,done,_ = env.step(action)
+                    next_state,reward,done,truncated,info = env.step(action)
                     buffer.add_element(state,action,reward,next_state,done)
                     state = next_state
                     total_return += reward
@@ -146,16 +152,24 @@ if __name__ == "__main__":
                             'rewards': b_r,
                             'dones': b_d
                         }
-                        agent.update()
+                        agent.update(transition_dict)
                 return_list.append(total_return)
-    
+                pbar.update(1)
     
     episodes_list = list(range(len(return_list)))
+    
     plt.plot(episodes_list, return_list)
     plt.xlabel('Episodes')
     plt.ylabel('Returns')
     plt.title('DQN on CartPole-v1')
-    plt.show()
+
+    image_name = 'DQN_return'
+    image_format = 'png'
+    save_path = os.path.join(r'C:\Users\yuanyibo\Desktop\Reinforce\assignment\code\assignment1\result', f'{image_name}.{image_format}')
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    plt.savefig(save_path)
+    plt.close()
                     
         
     
