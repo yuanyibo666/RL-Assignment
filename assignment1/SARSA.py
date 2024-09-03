@@ -3,6 +3,8 @@ import numpy as np
 from tqdm import tqdm
 import random
 import gym
+import os
+import Q_Learning
 
 
 class sarsa():
@@ -102,17 +104,34 @@ if __name__ == "__main__":
     
     print(f"size of observation space: {observation_space_size}, size of action space: {action_space_size}")
     
-    q_learning_instance = sarsa(env,observation_space_size,action_space_size,max_step,episodes_num,discount_rate,learn_rate,epsilon)
-    mean_return = q_learning_instance.genarate()
+    sarsa_instance = sarsa(env,observation_space_size,action_space_size,max_step,episodes_num,discount_rate,learn_rate,epsilon)
+    sarsa_mean_return = sarsa_instance.genarate()
+    sarsa_variance = np.var(sarsa_mean_return)
+    
+    q_learning_instance = Q_Learning.q_learning(env,observation_space_size,action_space_size,max_step,episodes_num,discount_rate,learn_rate,epsilon)
+    q_learning_return = q_learning_instance.genarate()
+    q_learning_variance = np.var(q_learning_return)
 
-    variance = np.var(mean_return)
+    
    
-    plt.figtext(0.5, 0.95,f"the variance = {variance}", ha='center')
-    plt.title("Sarsa")
+   
+    image_name = 'comparision'
+    image_format = 'png'
+    save_path = os.path.join(r'C:\Users\yuanyibo\Desktop\Reinforce\assignment\code\assignment1\result', f'{image_name}.{image_format}')
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+   
+
+    plt.figtext(0.3, 0.5, f"SARSA variance = {sarsa_variance:.3f}", va='center', ha='left')
+
+    plt.figtext(0.5, 0.8, f"Q-Learning variance = {q_learning_variance:.3f}", va='center', ha='right')
+    plt.title("Comparison of SARSA and Expected SARSA and Q- learning ")
     plt.xlabel("episode")
     plt.ylabel("mean return")
-    plt.plot(mean_return)    
-    plt.show()
+    plt.plot(range(episodes_num),sarsa_mean_return,label = 'sarsa',color='red') 
+    plt.plot(range(episodes_num),q_learning_return,label = 'q learing',color='blue') 
+    
+    plt.savefig(save_path)
+    plt.close()
     
 
         

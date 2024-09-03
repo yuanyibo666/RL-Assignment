@@ -10,7 +10,7 @@ import os
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="gym.utils.passive_env_checker")
 
-class replay_uffer():
+class replay_buffer():
     def __init__(self,capacity) -> None:
         self.capacity = capacity
         self.buffer = collections.deque(maxlen=capacity)
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     np.random.seed(0)
     #env.seed(0)
     torch.manual_seed(0)
-    buffer = replay_uffer(buffer_size)
+    buffer = replay_buffer(buffer_size)
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
  
@@ -132,6 +132,7 @@ if __name__ == "__main__":
         print(f"----->iteraion {i}")
         with tqdm(total=num_episodes, desc='Iteration %d' % i) as pbar:
             for episode in range(num_episodes):
+
                 total_return = 0
                 state = env.reset()
                 state = state[0]
@@ -162,8 +163,8 @@ if __name__ == "__main__":
     plt.xlabel('Episodes')
     plt.ylabel('Returns')
     plt.title('DQN on CartPole-v1')
-
-    image_name = 'DQN_return'
+    
+    image_name = 'DQN_return3'
     image_format = 'png'
     save_path = os.path.join(r'C:\Users\yuanyibo\Desktop\Reinforce\assignment\code\assignment1\result', f'{image_name}.{image_format}')
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
